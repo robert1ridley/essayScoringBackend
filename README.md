@@ -11,7 +11,7 @@ python版本：3.6 <br />
 ## 运行说明
 * `export FLASK_APP=main.py`
 * `flask run`
-* 目前 端口设置 为3000
+* 目前 端口设置 为5000
 
 ## DEVELOPMENT URL
 * http://127.0.0.1:5000/api/v1/score
