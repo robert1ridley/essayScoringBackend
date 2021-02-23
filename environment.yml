@@ -1,0 +1,10 @@
+name: essayScoringBackend
+channels:
+  - defaults
+dependencies:
+  - numpy=1.18.1
+  - python=3.6.12
+  - tensorflow=2.0.0
+  - pip:
+    - jieba==0.42.1
+prefix: /opt/miniconda3/envs/essayScoringBackend
