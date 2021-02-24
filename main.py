@@ -2,7 +2,7 @@ import json
 from flask import Flask, request, Response
 from models.scoring_model import ScoringModel
 
-application = app = Flask(__name__)
+app = Flask(__name__)
 
 
 def validate_request(req_json):
@@ -40,6 +40,5 @@ def not_found(error):
 
 if __name__ == '__main__':
     app.run(
-        host='0.0.0.0',
-        port=3000,
+        host='0.0.0.0'
     )

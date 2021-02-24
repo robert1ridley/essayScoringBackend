@@ -9,8 +9,7 @@ python版本：3.6 <br />
 - jieba=0.42.1
 
 ## 运行说明
-* `export FLASK_APP=main.py`
-* `flask run`
+* `python main.py`
 * 目前 端口设置 为5000
 
 ## DEVELOPMENT URL
