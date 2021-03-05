@@ -1,6 +1,8 @@
 import re
+import os
 import json
 import jieba
+import xlrd
 import numpy as np
 import tensorflow as tf
 from custom_layers.attention import Attention
@@ -11,11 +13,19 @@ num_regex = re.compile('^[+-]?[0-9]+\.?[0-9]*$')
 
 
 class ScoringModel(object):
-    def __init__(self, essay_text, vocab_loc, model_loc):
+    def __init__(self, essay_text, vocab_loc, model_loc, wordlists_paths, idiom_path):
         self.essay_text = essay_text
         self.vocab_loc = vocab_loc
         self.model_loc = model_loc
+        self.wordlists_paths = wordlists_paths
+        self.idiom_path = idiom_path
+        self.idioms_clean = None
+        self.hsk_word_dict = None
+        self.sentences = None
+        self.words = None
         self.vocab = None
+        self.idiom_prop = None
+        self.high_prop = None
         self.model = None
         self.padded_text = None
 
@@ -23,13 +33,91 @@ class ScoringModel(object):
         with open(self.vocab_loc) as f:
             self.vocab = json.load(f)
 
+    def load_idioms(self):
+        idioms = open(self.idiom_path, 'r').readlines()
+        self.idioms_clean = [id.strip() for id in idioms]
+
+    def load_hsk_wordlists(self):
+        hsk_word_dict = {}
+        for path_ in self.wordlists_paths:
+            f, e = os.path.splitext(path_)
+            filename_split = f.split('/')
+            filename = filename_split[-1]
+            wb = xlrd.open_workbook(path_)
+            sheet = wb.sheet_by_index(0)
+            words = sheet.col_values(2, 2)
+            hsk_word_dict[filename] = words
+        self.hsk_word_dict = hsk_word_dict
+
+    def get_idiom_prop(self):
+        idiom_count = 0
+        for idiom in self.idioms_clean:
+            if idiom in self.essay_text:
+                idiom_count += 1
+        words = []
+        for sent in self.sentences:
+            for word in sent:
+                words.append(word)
+        self.words = words
+        self.idiom_prop = idiom_count / len(words)
+
+    def get_high_vocab_prop(self):
+        word_level_counts = {'unk': 0}
+        word_dict_names = self.get_word_dict_names()
+        for word in self.words:
+            in_dict = False
+            for word_dict_name in word_dict_names:
+                if word in self.hsk_word_dict[word_dict_name]:
+                    in_dict = True
+                    new_level = self.get_level_matches(word_dict_name)
+                    if new_level in word_level_counts.keys():
+                        word_level_counts[new_level] += 1
+                    else:
+                        word_level_counts[new_level] = 1
+                    break
+            if in_dict == False:
+                word_level_counts['unk'] += 1
+        for k in word_level_counts.keys():
+            word_level_counts[k] = word_level_counts[k] / len(self.words)
+        try:
+            self.high_prop = word_level_counts[3]
+        except KeyError:
+            self.high_prop = 0
+
+    def get_vocab_score(self):
+        idiom_scores = {
+            1: (0, 0.012),
+            2: (0.012, 0.024),
+            3: (0.024, 0.036),
+            4: (0.036, 0.06),
+            5: (0.06, 1)
+        }
+        high_voc_scores = {
+            1: (0, 0.024),
+            2: (0.024, 0.048),
+            3: (0.048, 0.072),
+            4: (0.072, 0.096),
+            5: (0.096, 1)
+        }
+        idiom_score = 0
+        high_score = 0
+        for k in idiom_scores:
+            if self.idiom_prop >= idiom_scores[k][0] and self.idiom_prop < idiom_scores[k][1]:
+                idiom_score = k
+        for k in high_voc_scores:
+            if self.high_prop >= high_voc_scores[k][0] and self.high_prop < high_voc_scores[k][1]:
+                high_score = k
+        print(self.high_prop)
+        print(self.idiom_prop)
+        return idiom_score + high_score
+
     def load_model(self):
         layers_dict = {'ZeroMaskedEntries': ZeroMaskedEntries, 'Attention': Attention}
         self.model = tf.keras.models.load_model(self.model_loc, custom_objects=layers_dict)
 
     def process_essay_text(self, max_sent=64, max_word=50): # max vals hardcoded
-        sentences = self.cut_sent(self.essay_text)
-        sentences_ids = self.convert_text_to_ids(sentences)
+        self.sentences = self.cut_sent(self.essay_text)
+        sentences_ids = self.convert_text_to_ids(self.sentences)
         padded_text = self.pad_hierarchical_text_sequences(sentences_ids, max_sent, max_word)
         self.padded_text = padded_text.reshape((padded_text.shape[0], padded_text.shape[1] * padded_text.shape[2]))
 
@@ -136,3 +224,26 @@ class ScoringModel(object):
     def rescale_scores(scores_array, min_score=0, max_score=10):
         rescaled = scores_array * (max_score - min_score) + min_score
         return np.around(rescaled).astype(int)
+
+    @staticmethod
+    def get_level_matches(in_level):
+        level_dict = {
+            'HSK_Level_1': 1,
+            'HSK_Level_2': 1,
+            'HSK_Level_3': 2,
+            'HSK_Level_4': 2,
+            'HSK_Level_5': 3,
+            'HSK_Level_6': 3
+        }
+        return level_dict[in_level]
+
+    @staticmethod
+    def get_word_dict_names():
+        return [
+            'HSK_Level_1',
+            'HSK_Level_2',
+            'HSK_Level_3',
+            'HSK_Level_4',
+            'HSK_Level_5',
+            'HSK_Level_6'
+        ]

@@ -23,12 +23,30 @@ def get_score():
     if validation_result:
         return Response(validation_result,
                         status=200, mimetype='application/json')
-    model = ScoringModel(original_text, 'resources/vocab.json', 'resources/org_word_hi_att_text_only_model')
+    model = ScoringModel(
+        original_text,
+        'resources/vocab.json',
+        'resources/org_word_hi_att_text_only_model',
+        [
+            'resources/HSK_Level_1.xls',
+            'resources/HSK_Level_2.xls',
+            'resources/HSK_Level_3.xls',
+            'resources/HSK_Level_4.xls',
+            'resources/HSK_Level_5.xls',
+            'resources/HSK_Level_6.xls',
+        ],
+        'resources/idiomlist.txt'
+    )
     model.load_vocab()
     model.load_model()
     model.process_essay_text()
     score = model.predict_score()
-    res = json.dumps({"score": score, "error": None})
+    model.load_idioms()
+    model.load_hsk_wordlists()
+    model.get_idiom_prop()
+    model.get_high_vocab_prop()
+    vocab_score = model.get_vocab_score()
+    res = json.dumps({"score": score, 'vocabulary': vocab_score, "error": None})
     res = Response(res, status=200, mimetype='application/json')
     return res
 
