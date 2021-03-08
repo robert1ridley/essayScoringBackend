@@ -111,6 +111,26 @@ class ScoringModel(object):
         print(self.idiom_prop)
         return idiom_score + high_score
 
+    def get_readability_score(self):
+        '''
+        Using The Flesch Reading Ease Readability Formula:
+        RE = 206.835 – (1.015 x ASL) – (84.6 x ASW)
+        ASL = Average Sentence Length
+        ASW = Average Syllables per Word
+        :return: int (0-10)
+        '''
+        sentence_lengths = [len(sentence) for sentence in self.sentences]
+        word_lengths = [len(word) for sentence in self.sentences for word in sentence]
+        ASL = np.mean(sentence_lengths)
+        ASW = np.mean(word_lengths)
+        RE = 206.835 - (1.015*ASL) - (84.6*ASW)
+        if RE < 0:
+            RE = 0
+        elif RE > 100:
+            RE = 100
+        readability_score = int(np.ceil((100 - RE)/10))
+        return readability_score
+
     def load_model(self):
         layers_dict = {'ZeroMaskedEntries': ZeroMaskedEntries, 'Attention': Attention}
         self.model = tf.keras.models.load_model(self.model_loc, custom_objects=layers_dict)

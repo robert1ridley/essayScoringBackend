@@ -46,7 +46,8 @@ def get_score():
     model.get_idiom_prop()
     model.get_high_vocab_prop()
     vocab_score = model.get_vocab_score()
-    res = json.dumps({"score": score, 'vocabulary': vocab_score, "error": None})
+    readability_score = model.get_readability_score()
+    res = json.dumps({"score": score, 'vocabulary': vocab_score, 'readability_score': readability_score, "error": None})
     res = Response(res, status=200, mimetype='application/json')
     return res
 
