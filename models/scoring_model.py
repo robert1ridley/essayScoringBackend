@@ -13,12 +13,12 @@ num_regex = re.compile('^[+-]?[0-9]+\.?[0-9]*$')
 
 
 class ScoringModel(object):
-    def __init__(self, essay_text, vocab_loc, model_loc, wordlists_paths, idiom_path):
-        self.essay_text = essay_text
+    def __init__(self, vocab_loc, model_loc, wordlists_paths, idiom_path):
         self.vocab_loc = vocab_loc
         self.model_loc = model_loc
         self.wordlists_paths = wordlists_paths
         self.idiom_path = idiom_path
+        self.essay_text = None
         self.idioms_clean = None
         self.hsk_word_dict = None
         self.sentences = None
@@ -28,6 +28,10 @@ class ScoringModel(object):
         self.high_prop = None
         self.model = None
         self.padded_text = None
+        self.load_vocab()
+        self.load_model()
+        self.load_idioms()
+        self.load_hsk_wordlists()
 
     def load_vocab(self):
         with open(self.vocab_loc) as f:
@@ -48,6 +52,9 @@ class ScoringModel(object):
             words = sheet.col_values(2, 2)
             hsk_word_dict[filename] = words
         self.hsk_word_dict = hsk_word_dict
+
+    def set_essay_text(self, essay_text):
+        self.essay_text = essay_text
 
     def get_idiom_prop(self):
         idiom_count = 0
@@ -107,8 +114,6 @@ class ScoringModel(object):
         for k in high_voc_scores:
             if self.high_prop >= high_voc_scores[k][0] and self.high_prop < high_voc_scores[k][1]:
                 high_score = k
-        print(self.high_prop)
-        print(self.idiom_prop)
         return idiom_score + high_score
 
     def get_readability_score(self):
@@ -143,9 +148,7 @@ class ScoringModel(object):
 
     def predict_score(self):
         pred = self.model.predict(self.padded_text)
-        print(pred)
         scaled_pred = self.rescale_scores(pred)
-        print(scaled_pred)
         return int(scaled_pred[0, 0])
 
     def convert_text_to_ids(self, sentences):

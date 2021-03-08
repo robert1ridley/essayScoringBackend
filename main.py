@@ -4,6 +4,20 @@ from models.scoring_model import ScoringModel
 
 app = Flask(__name__)
 
+model = ScoringModel(
+        'resources/vocab.json',
+        'resources/org_word_hi_att_text_only_model',
+        [
+            'resources/HSK_Level_1.xls',
+            'resources/HSK_Level_2.xls',
+            'resources/HSK_Level_3.xls',
+            'resources/HSK_Level_4.xls',
+            'resources/HSK_Level_5.xls',
+            'resources/HSK_Level_6.xls',
+        ],
+        'resources/idiomlist.txt'
+    )
+
 
 def validate_request(req_json):
     try:
@@ -23,26 +37,9 @@ def get_score():
     if validation_result:
         return Response(validation_result,
                         status=200, mimetype='application/json')
-    model = ScoringModel(
-        original_text,
-        'resources/vocab.json',
-        'resources/org_word_hi_att_text_only_model',
-        [
-            'resources/HSK_Level_1.xls',
-            'resources/HSK_Level_2.xls',
-            'resources/HSK_Level_3.xls',
-            'resources/HSK_Level_4.xls',
-            'resources/HSK_Level_5.xls',
-            'resources/HSK_Level_6.xls',
-        ],
-        'resources/idiomlist.txt'
-    )
-    model.load_vocab()
-    model.load_model()
+    model.set_essay_text(original_text)
     model.process_essay_text()
     score = model.predict_score()
-    model.load_idioms()
-    model.load_hsk_wordlists()
     model.get_idiom_prop()
     model.get_high_vocab_prop()
     vocab_score = model.get_vocab_score()
